@@ -457,6 +457,7 @@ def load_from_sheet() -> tuple[pd.DataFrame, bool, dict]:
         resp = requests.get(SHEET_URL, timeout=20)
         debug["status_code"] = resp.status_code
         resp.raise_for_status()
+        resp.encoding = "utf-8"  # Google отдаёт UTF-8, но requests иногда угадывает latin-1 без явного charset
         text = resp.text
         debug["response_preview"] = text[:300]
         debug["response_length"] = len(text)
