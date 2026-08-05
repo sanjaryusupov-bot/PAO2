@@ -450,21 +450,31 @@ def finalize(raw: pd.DataFrame) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
-def load_from_sheet() -> tuple[pd.DataFrame, bool]:
-    """Возвращает (df, is_live). is_live=False, если пришлось использовать демо-данные."""
+def load_from_sheet() -> tuple[pd.DataFrame, bool, dict]:
+    """Возвращает (df, is_live, debug). is_live=False, если пришлось использовать демо-данные."""
+    debug = {"url": SHEET_URL}
     try:
         resp = requests.get(SHEET_URL, timeout=20)
+        debug["status_code"] = resp.status_code
         resp.raise_for_status()
         text = resp.text
+        debug["response_preview"] = text[:300]
+        debug["response_length"] = len(text)
         if text.strip().lower().startswith("<!doctype") or "<html" in text[:200].lower():
+            debug["error"] = "Ответ похож на HTML-страницу (логин/доступ), а не на CSV"
             raise ValueError("no access")
         # dtype=str — критично: не даём pandas превращать длинные числовые
         # СКЮ/коды в float (что приводит к "1.0000e+18" и "123.0" при экспорте)
         raw = pd.read_csv(io.StringIO(text), dtype=str)
-        return finalize(raw), True
-    except Exception:
+        debug["raw_columns"] = list(raw.columns)
+        debug["raw_row_count"] = len(raw)
+        final = finalize(raw)
+        debug["final_row_count"] = len(final)
+        return final, True, debug
+    except Exception as e:
+        debug["exception"] = f"{type(e).__name__}: {e}"
         raw = pd.read_csv(io.StringIO(SAMPLE_DATA_CSV), dtype=str)
-        return finalize(raw), False
+        return finalize(raw), False, debug
 
 
 def to_excel_bytes(sheets: dict, drop_cols: dict | None = None) -> bytes:
@@ -519,12 +529,14 @@ def to_excel_bytes(sheets: dict, drop_cols: dict | None = None) -> bytes:
 # ──────────────────────────────────────────────────────────────────────────
 # ЗАГРУЖАЕМ ДАННЫЕ
 # ──────────────────────────────────────────────────────────────────────────
-df, is_live = load_from_sheet()
+df, is_live, debug_info = load_from_sheet()
 
 # ──────────────────────────────────────────────────────────────────────────
 # SIDEBAR — ТОЛЬКО ПОИСК
 # ──────────────────────────────────────────────────────────────────────────
 with st.sidebar:
+    with st.expander("🔧 Диагностика загрузки", expanded=not is_live):
+        st.json(debug_info)
     st.markdown("### 🔍 Поиск")
     search = st.text_input(
         "Поиск",
