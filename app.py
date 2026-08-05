@@ -553,7 +553,7 @@ with hero_col1:
 """, unsafe_allow_html=True)
 with hero_col2:
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-    if st.button("🔄 Обновить данные", use_container_width=True):
+    if st.button("🔄 Обновить данные", width="stretch"):
         st.cache_data.clear()
         st.rerun()
 
@@ -569,7 +569,7 @@ labels = [
 ]
 for i, (key, label) in enumerate(labels):
     btn_type = "primary" if st.session_state.filter_mode == key else "secondary"
-    if btn_cols[i].button(label, use_container_width=True, type=btn_type, key=f"btn_{key}"):
+    if btn_cols[i].button(label, width="stretch", type=btn_type, key=f"btn_{key}"):
         st.session_state.filter_mode = key
 
 mode = st.session_state.filter_mode
@@ -676,7 +676,7 @@ fig_donut.update_traces(textposition="outside", textinfo="percent+label",
 fig_donut.update_layout(showlegend=False, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                          font_color="#1E1B33", margin=dict(t=10, b=10, l=10, r=10), height=340,
                          transition_duration=400)
-st.plotly_chart(fig_donut, use_container_width=True)
+st.plotly_chart(fig_donut, width="stretch")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -723,7 +723,7 @@ try:
 except AttributeError:
     styled = styler.applymap(highlight_disc, subset=["Рассхождения"])
 
-st.dataframe(styled, use_container_width=True, height=420, hide_index=True)
+st.dataframe(styled, width="stretch", height=420, hide_index=True)
 
 # ──────────────────────────────────────────────────────────────────────────
 # ЭКСПОРТ В EXCEL — раздельно по типам + текущий поиск/фильтр
@@ -740,7 +740,7 @@ with exp_col1:
         data=to_excel_bytes({"Излишки": data}),
         file_name=f"izlishki_{ts}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
+        width="stretch",
     )
 
 with exp_col2:
@@ -750,7 +750,7 @@ with exp_col2:
         data=to_excel_bytes({"Недостачи": data}),
         file_name=f"nedostachi_{ts}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
+        width="stretch",
     )
 
 with exp_col3:
@@ -760,7 +760,7 @@ with exp_col3:
         data=to_excel_bytes({"Потери": data}, drop_cols={"Потери": [DISPLAY_NAMES["discrepancy"]]}),
         file_name=f"poteri_{ts}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
+        width="stretch",
     )
 
 with exp_col4:
@@ -769,7 +769,7 @@ with exp_col4:
         data=to_excel_bytes({mode_titles[mode][:31]: filtered}),
         file_name=f"poisk_{mode}_{ts}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
+        width="stretch",
     )
 
 st.markdown("""
