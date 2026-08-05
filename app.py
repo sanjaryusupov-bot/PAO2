@@ -469,7 +469,9 @@ def load_from_sheet() -> tuple[pd.DataFrame, bool]:
         return finalize(raw), False
 
 
-def to_excel_bytes(sheets: dict) -> bytes:
+def to_excel_bytes(sheets: dict, drop_cols: dict | None = None) -> bytes:
+    """drop_cols: {sheet_name: [список отображаемых названий колонок, которые НЕ выгружать]}"""
+    drop_cols = drop_cols or {}
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         workbook = writer.book
@@ -489,6 +491,8 @@ def to_excel_bytes(sheets: dict) -> bytes:
             # Сортировка от большего к меньшему по модулю расхождения
             data = data.reindex(data["discrepancy"].abs().sort_values(ascending=False).index)
             display_df = data.rename(columns=DISPLAY_NAMES).drop(columns=["category"], errors="ignore")
+            for extra_col in drop_cols.get(sheet_name, []):
+                display_df = display_df.drop(columns=[extra_col], errors="ignore")
             safe_name = sheet_name[:31]
             display_df.to_excel(writer, sheet_name=safe_name, index=False)
             ws = writer.sheets[safe_name]
@@ -609,11 +613,11 @@ pct_shortage = shortage_n / total * 100 if total else 0
 pct_zero = zero_n / total * 100 if total else 0
 pct_loss = loss_n / total * 100 if total else 0
 
-sum_excess_qty = int(df.loc[df["discrepancy"] < 0, "discrepancy"].sum())
-sum_shortage_qty = int(df.loc[df["discrepancy"] > 0, "discrepancy"].sum())
-sum_lost_qty = int(df["lost"].sum())
-total_stock_qty = int(df["stock"].sum())
-zero_stock_qty = int(df.loc[df["category"] == "Без расхождений", "stock"].sum())
+qty_excess = abs(int(df.loc[df["discrepancy"] < 0, "discrepancy"].sum()))
+qty_shortage = int(df.loc[df["discrepancy"] > 0, "discrepancy"].sum())
+qty_lost = int(df["lost"].sum())
+qty_total = int(df["stock"].sum())
+qty_zero = int(df.loc[df["category"] == "Без расхождений", "stock"].sum())
 
 
 def fmt(n):
@@ -622,22 +626,20 @@ def fmt(n):
 
 st.markdown("### 📈 Ключевые показатели")
 kpi_cols = st.columns(5)
+# (label, значение в шт, доп.строка "% · N СКЮ", цвет категории)
 kpi_data = [
-    ("Всего СКЮ", fmt(total), None, None, f"{fmt(total_stock_qty)} шт остаток"),
-    ("Излишки", fmt(excess_n), f"{pct_excess:.1f}%", "pos", f"{fmt(sum_excess_qty)} шт"),
-    ("Недостачи", fmt(shortage_n), f"{pct_shortage:.1f}%", "neg", f"+{fmt(sum_shortage_qty)} шт"),
-    ("Без расхождений", fmt(zero_n), f"{pct_zero:.1f}%", "neutral", f"{fmt(zero_stock_qty)} шт остаток"),
-    ("С потерями", fmt(loss_n), f"{pct_loss:.1f}%", "neg", f"{fmt(sum_lost_qty)} шт"),
+    ("Всего СКЮ", fmt(qty_total), f"{fmt(total)} СКЮ", "#4F46E5"),
+    ("Излишки", fmt(qty_excess), f"{pct_excess:.1f}% · {fmt(excess_n)} СКЮ", "#16A34A"),
+    ("Недостачи", fmt(qty_shortage), f"{pct_shortage:.1f}% · {fmt(shortage_n)} СКЮ", "#DC2626"),
+    ("Без расхождений", fmt(qty_zero), f"{pct_zero:.1f}% · {fmt(zero_n)} СКЮ", "#0891B2"),
+    ("С потерями", fmt(qty_lost), f"{pct_loss:.1f}% · {fmt(loss_n)} СКЮ", "#D97706"),
 ]
-for col, (label, value, sub, cls, qty) in zip(kpi_cols, kpi_data):
-    sub_html = f'<div class="kpi-sub {cls}">{sub}</div>' if sub else ""
-    qty_html = f'<div class="kpi-qty">{qty}</div>' if qty else ""
+for col, (label, value, sub, color) in zip(kpi_cols, kpi_data):
     col.markdown(f"""
-<div class="kpi-card">
+<div class="kpi-card" style="border-top:4px solid {color};">
 <div class="kpi-label">{label}</div>
-<div class="kpi-value">{value}</div>
-{sub_html}
-{qty_html}
+<div class="kpi-value" style="background:linear-gradient(90deg, {color}, {color}CC); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">{value} <span style="font-size:14px; font-weight:700;">шт</span></div>
+<div class="kpi-sub" style="color:{color};">{sub}</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -645,9 +647,9 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 prog_col1, prog_col2, prog_col3 = st.columns(3)
 progress_data = [
-    (prog_col1, "Излишки", pct_excess, "#4ADE80, #22D3EE"),
-    (prog_col2, "Недостачи", pct_shortage, "#F87171, #F472B6"),
-    (prog_col3, "Потери", pct_loss, "#F59E0B, #F87171"),
+    (prog_col1, "Излишки", pct_excess, "#16A34A, #22C55E"),
+    (prog_col2, "Недостачи", pct_shortage, "#DC2626, #F87171"),
+    (prog_col3, "Потери", pct_loss, "#D97706, #F59E0B"),
 ]
 for col, label, pct, color in progress_data:
     col.markdown(f"""
@@ -663,14 +665,14 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ──────────────────────────────────────────────────────────────────────────
 # ГРАФИКИ
 # ──────────────────────────────────────────────────────────────────────────
-st.markdown("#### 🍩 Структура расхождений")
+st.markdown("#### 🍩 Структура расхождений, шт")
 donut_df = pd.DataFrame({
     "Категория": ["Излишки", "Недостачи", "Без расхождений"],
-    "Кол-во": [excess_n, shortage_n, zero_n],
+    "Шт": [qty_excess, qty_shortage, qty_zero],
 })
 fig_donut = px.pie(
-    donut_df, names="Категория", values="Кол-во", hole=0.6, color="Категория",
-    color_discrete_map={"Излишки": "#16A34A", "Недостачи": "#DC2626", "Без расхождений": "#94A3B8"},
+    donut_df, names="Категория", values="Шт", hole=0.6, color="Категория",
+    color_discrete_map={"Излишки": "#16A34A", "Недостачи": "#DC2626", "Без расхождений": "#0891B2"},
 )
 fig_donut.update_traces(textposition="outside", textinfo="percent+label",
                          marker=dict(line=dict(color="#FFFFFF", width=2)))
@@ -695,11 +697,14 @@ st.markdown(f"### 📋 {mode_titles[mode]} · найдено {fmt(len(filtered))
 
 sum_lost_filtered = int(filtered["lost"].sum())
 sum_disc_filtered = int(filtered["discrepancy"].sum())
+excess_qty_filtered = abs(int(filtered.loc[filtered["discrepancy"] < 0, "discrepancy"].sum()))
+shortage_qty_filtered = int(filtered.loc[filtered["discrepancy"] > 0, "discrepancy"].sum())
+total_ent_filtered = excess_qty_filtered + shortage_qty_filtered + sum_lost_filtered
 st.markdown(f"""
 <div class="summary-strip">
 <div>Итого <b>Потеряно</b>: <b>{fmt(sum_lost_filtered)}</b> шт</div>
 <div>Итого <b>Рассхождения</b> (сумма): <b>{fmt(sum_disc_filtered)}</b> шт</div>
-<div>Позиций в выборке: <b>{fmt(len(filtered))}</b></div>
+<div>Излишки + Недостачи + Потери: <b>{fmt(total_ent_filtered)}</b> шт</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -755,7 +760,7 @@ with exp_col3:
     data = df[df["lost"] > 0]
     st.download_button(
         f"⬇️ Потери ({fmt(len(data))})",
-        data=to_excel_bytes({"Потери": data}),
+        data=to_excel_bytes({"Потери": data}, drop_cols={"Потери": [DISPLAY_NAMES["discrepancy"]]}),
         file_name=f"poteri_{ts}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True,
