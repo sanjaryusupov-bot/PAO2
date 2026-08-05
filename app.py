@@ -174,10 +174,10 @@ st.markdown("""
 html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
 .stApp {
-background: radial-gradient(1200px 600px at 10% -10%, rgba(139,92,246,0.16), transparent 60%),
-            radial-gradient(1000px 500px at 100% 0%, rgba(6,182,212,0.14), transparent 55%),
-            linear-gradient(180deg, #14152099 0%, #0f0f17 45%, #0b0b12 100%);
-background-color: #0b0b12;
+background: radial-gradient(1200px 600px at 10% -10%, rgba(167,139,250,0.14), transparent 60%),
+            radial-gradient(1000px 500px at 100% 0%, rgba(34,211,238,0.12), transparent 55%),
+            linear-gradient(180deg, #FBFAFF 0%, #F5F3FF 45%, #F0FBFF 100%);
+background-color: #FBFAFF;
 }
 
 /* Заголовок */
@@ -187,9 +187,9 @@ justify-content: space-between;
 align-items: center;
 padding: 28px 34px;
 border-radius: 18px;
-background: linear-gradient(135deg, #1e1b3a 0%, #241f45 45%, #1a2a3f 100%);
-border: 1px solid rgba(167,139,250,0.25);
-box-shadow: 0 8px 32px rgba(124,58,237,0.18);
+background: linear-gradient(135deg, #7C3AED 0%, #A855F7 45%, #22D3EE 100%);
+border: 1px solid rgba(124,58,237,0.20);
+box-shadow: 0 10px 32px rgba(124,58,237,0.25);
 margin-bottom: 22px;
 animation: fadeIn 0.6s ease;
 position: relative;
@@ -200,7 +200,7 @@ content: "";
 position: absolute;
 top: -60%; left: -20%;
 width: 60%; height: 220%;
-background: linear-gradient(120deg, transparent, rgba(255,255,255,0.08), transparent);
+background: linear-gradient(120deg, transparent, rgba(255,255,255,0.35), transparent);
 animation: sheen 5s ease-in-out infinite;
 }
 @keyframes sheen {
@@ -209,19 +209,20 @@ animation: sheen 5s ease-in-out infinite;
 100% { transform: translateX(220%) rotate(8deg); }
 }
 .hero h1 {
-color: #F8F7FF;
+color: #FFFFFF;
 font-weight: 900;
 font-size: 29px;
 margin: 0;
 letter-spacing: -0.3px;
+text-shadow: 0 2px 12px rgba(0,0,0,0.12);
 }
 .hero p {
-color: #B8B6D6;
+color: #F1EBFF;
 margin: 5px 0 0 0;
 font-size: 14px;
 }
 .hero-accent {
-background: linear-gradient(90deg, #A78BFA, #22D3EE, #F472B6);
+background: linear-gradient(90deg, #FDE68A, #FFFFFF, #A7F3D0);
 background-size: 200% auto;
 -webkit-background-clip: text;
 -webkit-text-fill-color: transparent;
@@ -240,16 +241,17 @@ from { opacity: 0; transform: translateY(14px) scale(0.98); }
 to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 @keyframes pulseGlow {
-0%, 100% { box-shadow: 0 0 0 rgba(167,139,250,0); }
-50% { box-shadow: 0 0 22px rgba(167,139,250,0.25); }
+0%, 100% { box-shadow: 0 0 0 rgba(124,58,237,0); }
+50% { box-shadow: 0 0 22px rgba(124,58,237,0.35); }
 }
 
 /* KPI карточки */
 .kpi-card {
 border-radius: 16px;
 padding: 18px 20px;
-background: linear-gradient(160deg, #1a1a2b 0%, #16161f 100%);
-border: 1px solid rgba(167,139,250,0.14);
+background: #FFFFFF;
+border: 1px solid rgba(124,58,237,0.12);
+box-shadow: 0 4px 18px rgba(124,58,237,0.08);
 animation: fadeInUp 0.5s ease both;
 transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 position: relative;
@@ -260,12 +262,12 @@ position: relative;
 .kpi-card:nth-child(4) { animation-delay: 0.20s; }
 .kpi-card:nth-child(5) { animation-delay: 0.26s; }
 .kpi-card:hover {
-border-color: rgba(167,139,250,0.55);
+border-color: rgba(124,58,237,0.45);
 transform: translateY(-3px);
-box-shadow: 0 10px 26px rgba(124,58,237,0.22);
+box-shadow: 0 12px 28px rgba(124,58,237,0.18);
 }
 .kpi-label {
-color: #9C9BC2;
+color: #6B6690;
 font-size: 12.5px;
 font-weight: 700;
 text-transform: uppercase;
@@ -273,22 +275,22 @@ letter-spacing: 0.6px;
 margin-bottom: 6px;
 }
 .kpi-value {
-background: linear-gradient(90deg, #F8F7FF, #D9D6FF);
+background: linear-gradient(90deg, #7C3AED, #4C1D95);
 -webkit-background-clip: text;
 -webkit-text-fill-color: transparent;
 font-size: 27px;
 font-weight: 900;
 line-height: 1.15;
 }
-.kpi-sub { margin-top: 6px; font-size: 12px; font-weight: 600; }
-.kpi-sub.pos { color: #4ADE80; }
-.kpi-sub.neg { color: #F87171; }
-.kpi-sub.neutral { color: #22D3EE; }
-.kpi-qty { margin-top: 3px; font-size: 11px; font-weight: 500; color: #7C7A9E; }
+.kpi-sub { margin-top: 6px; font-size: 12px; font-weight: 700; }
+.kpi-sub.pos { color: #16A34A; }
+.kpi-sub.neg { color: #DC2626; }
+.kpi-sub.neutral { color: #0891B2; }
+.kpi-qty { margin-top: 3px; font-size: 11.5px; font-weight: 600; color: #8B87AE; }
 
 /* Прогресс-полоски */
 .prog-wrap {
-background: rgba(255,255,255,0.07);
+background: rgba(124,58,237,0.10);
 border-radius: 999px;
 height: 9px;
 width: 100%;
@@ -308,23 +310,38 @@ animation: growBar 1s cubic-bezier(.22,1,.36,1) both, shimmerBar 2.5s linear inf
 div.stButton > button {
 border-radius: 10px !important;
 font-weight: 700 !important;
-border: 1px solid rgba(167,139,250,0.22) !important;
+background: #FFFFFF !important;
+color: #4C1D95 !important;
+border: 1px solid rgba(124,58,237,0.25) !important;
 transition: all 0.18s ease !important;
 }
 div.stButton > button:hover {
 transform: translateY(-2px);
-border-color: rgba(167,139,250,0.7) !important;
-box-shadow: 0 6px 16px rgba(124,58,237,0.28);
+border-color: rgba(124,58,237,0.7) !important;
+box-shadow: 0 6px 16px rgba(124,58,237,0.22);
 }
 div.stButton > button[kind="primary"] {
 background: linear-gradient(90deg, #7C3AED, #22D3EE) !important;
+color: #FFFFFF !important;
 border: none !important;
 animation: pulseGlow 2.4s ease-in-out infinite;
 }
+div.stDownloadButton > button {
+border-radius: 10px !important;
+font-weight: 700 !important;
+background: linear-gradient(90deg, #7C3AED, #22D3EE) !important;
+color: #FFFFFF !important;
+border: none !important;
+transition: all 0.18s ease !important;
+}
+div.stDownloadButton > button:hover {
+transform: translateY(-2px);
+box-shadow: 0 6px 18px rgba(124,58,237,0.3);
+}
 
 section[data-testid="stSidebar"] {
-background: #101019;
-border-right: 1px solid rgba(167,139,250,0.10);
+background: #FFFFFF;
+border-right: 1px solid rgba(124,58,237,0.10);
 }
 
 .summary-strip {
@@ -333,18 +350,22 @@ gap: 22px;
 flex-wrap: wrap;
 padding: 14px 18px;
 border-radius: 12px;
-background: linear-gradient(160deg, #1a1a2b 0%, #16161f 100%);
-border: 1px solid rgba(167,139,250,0.16);
+background: #FFFFFF;
+border: 1px solid rgba(124,58,237,0.14);
+box-shadow: 0 4px 14px rgba(124,58,237,0.07);
 margin: 10px 0 16px 0;
 font-size: 14px;
-color: #C7CAD1;
+color: #443F6B;
 animation: fadeInUp 0.4s ease both;
 }
-.summary-strip b { color: #F8F7FF; }
+.summary-strip b { color: #1E1B33; }
+
+h1, h2, h3, h4, h5, p, span, label { color: #1E1B33; }
 
 footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
+
 
 # ──────────────────────────────────────────────────────────────────────────
 # ЗАГРУЗКА / НОРМАЛИЗАЦИЯ / АГРЕГАЦИЯ
@@ -463,10 +484,18 @@ def to_excel_bytes(sheets: dict) -> bytes:
         id_display_cols = {DISPLAY_NAMES["sku"], DISPLAY_NAMES["magnit_code"], DISPLAY_NAMES["barcode"]}
 
         for sheet_name, data in sheets.items():
+            # Не выгружаем строки без описания (значение "0" — значит нет данных)
+            data = data[data["description"] != "0"]
+            # Сортировка от большего к меньшему по модулю расхождения
+            data = data.reindex(data["discrepancy"].abs().sort_values(ascending=False).index)
             display_df = data.rename(columns=DISPLAY_NAMES).drop(columns=["category"], errors="ignore")
             safe_name = sheet_name[:31]
             display_df.to_excel(writer, sheet_name=safe_name, index=False)
             ws = writer.sheets[safe_name]
+            if len(display_df) == 0:
+                for i, col in enumerate(display_df.columns):
+                    ws.write(0, i, col, header_fmt)
+                continue
             for i, col in enumerate(display_df.columns):
                 ws.write(0, i, col, header_fmt)
                 width = max(14, min(46, int(display_df[col].astype(str).str.len().max() or 14) + 2))
@@ -584,6 +613,7 @@ sum_excess_qty = int(df.loc[df["discrepancy"] < 0, "discrepancy"].sum())
 sum_shortage_qty = int(df.loc[df["discrepancy"] > 0, "discrepancy"].sum())
 sum_lost_qty = int(df["lost"].sum())
 total_stock_qty = int(df["stock"].sum())
+zero_stock_qty = int(df.loc[df["category"] == "Без расхождений", "stock"].sum())
 
 
 def fmt(n):
@@ -594,10 +624,10 @@ st.markdown("### 📈 Ключевые показатели")
 kpi_cols = st.columns(5)
 kpi_data = [
     ("Всего СКЮ", fmt(total), None, None, f"{fmt(total_stock_qty)} шт остаток"),
-    ("Излишки", fmt(excess_n), f"{pct_excess:.1f}% · {fmt(sum_excess_qty)} шт", "pos", None),
-    ("Недостачи", fmt(shortage_n), f"{pct_shortage:.1f}% · +{fmt(sum_shortage_qty)} шт", "neg", None),
-    ("Без расхождений", fmt(zero_n), f"{pct_zero:.1f}%", "neutral", None),
-    ("С потерями", fmt(loss_n), f"{pct_loss:.1f}% · {fmt(sum_lost_qty)} шт", "neg", None),
+    ("Излишки", fmt(excess_n), f"{pct_excess:.1f}%", "pos", f"{fmt(sum_excess_qty)} шт"),
+    ("Недостачи", fmt(shortage_n), f"{pct_shortage:.1f}%", "neg", f"+{fmt(sum_shortage_qty)} шт"),
+    ("Без расхождений", fmt(zero_n), f"{pct_zero:.1f}%", "neutral", f"{fmt(zero_stock_qty)} шт остаток"),
+    ("С потерями", fmt(loss_n), f"{pct_loss:.1f}%", "neg", f"{fmt(sum_lost_qty)} шт"),
 ]
 for col, (label, value, sub, cls, qty) in zip(kpi_cols, kpi_data):
     sub_html = f'<div class="kpi-sub {cls}">{sub}</div>' if sub else ""
@@ -633,42 +663,24 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ──────────────────────────────────────────────────────────────────────────
 # ГРАФИКИ
 # ──────────────────────────────────────────────────────────────────────────
-chart_col1, chart_col2 = st.columns([1, 1.4])
-
-with chart_col1:
-    st.markdown("#### 🍩 Структура расхождений")
-    donut_df = pd.DataFrame({
-        "Категория": ["Излишки", "Недостачи", "Без расхождений"],
-        "Кол-во": [excess_n, shortage_n, zero_n],
-    })
-    fig_donut = px.pie(
-        donut_df, names="Категория", values="Кол-во", hole=0.6, color="Категория",
-        color_discrete_map={"Излишки": "#4ADE80", "Недостачи": "#F87171", "Без расхождений": "#5B6270"},
-    )
-    fig_donut.update_traces(textposition="outside", textinfo="percent+label",
-                             marker=dict(line=dict(color="#0f1116", width=2)))
-    fig_donut.update_layout(showlegend=False, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                             font_color="#E5E7EB", margin=dict(t=10, b=10, l=10, r=10), height=330,
-                             transition_duration=400)
-    st.plotly_chart(fig_donut, use_container_width=True)
-
-with chart_col2:
-    st.markdown("#### 🔝 Топ-15 позиций по модулю расхождения")
-    top = df.reindex(df["discrepancy"].abs().sort_values(ascending=False).index).head(15).copy()
-    top["label"] = top["description"].str.slice(0, 38) + top["description"].apply(lambda x: "…" if len(x) > 38 else "")
-    top["sign"] = top["discrepancy"].apply(lambda x: "Излишек" if x < 0 else ("Недостача" if x > 0 else "Норма"))
-    fig_bar = px.bar(
-        top.sort_values("discrepancy"), x="discrepancy", y="label", orientation="h", color="sign",
-        color_discrete_map={"Излишек": "#4ADE80", "Недостача": "#F87171", "Норма": "#5B6270"},
-        labels={"discrepancy": "Расхождение, шт", "label": "", "sign": "Тип"},
-    )
-    fig_bar.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#E5E7EB",
-                           legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                           margin=dict(t=10, b=10, l=10, r=10), height=330, transition_duration=400)
-    fig_bar.update_xaxes(gridcolor="rgba(255,255,255,0.06)")
-    st.plotly_chart(fig_bar, use_container_width=True)
+st.markdown("#### 🍩 Структура расхождений")
+donut_df = pd.DataFrame({
+    "Категория": ["Излишки", "Недостачи", "Без расхождений"],
+    "Кол-во": [excess_n, shortage_n, zero_n],
+})
+fig_donut = px.pie(
+    donut_df, names="Категория", values="Кол-во", hole=0.6, color="Категория",
+    color_discrete_map={"Излишки": "#16A34A", "Недостачи": "#DC2626", "Без расхождений": "#94A3B8"},
+)
+fig_donut.update_traces(textposition="outside", textinfo="percent+label",
+                         marker=dict(line=dict(color="#FFFFFF", width=2)))
+fig_donut.update_layout(showlegend=False, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                         font_color="#1E1B33", margin=dict(t=10, b=10, l=10, r=10), height=340,
+                         transition_duration=400)
+st.plotly_chart(fig_donut, use_container_width=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
+
 
 # ──────────────────────────────────────────────────────────────────────────
 # ТАБЛИЦА + ИТОГИ ПО ВЫБОРКЕ
@@ -697,9 +709,9 @@ display_df = filtered.rename(columns=DISPLAY_NAMES).drop(columns=["category"], e
 def highlight_disc(val):
     if isinstance(val, (int, float)):
         if val < 0:
-            return "color:#4ADE80; font-weight:700;"
+            return "color:#16A34A; font-weight:700;"
         elif val > 0:
-            return "color:#F87171; font-weight:700;"
+            return "color:#DC2626; font-weight:700;"
     return ""
 
 
