@@ -14,6 +14,16 @@ SHEET_ID = "1xpiftC3wy1QRDdBxklSbgl5Ph4eW0wGcl8as9mIZXuU"
 GID = "447006824"
 SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 CACHE_TTL_SECONDS = 300
+
+# ОКК: отдельная таблица «ФМСЖ Магнит Проблемные» (Тип расхождения / Разница)
+OKK_SHEET_ID = "1NtUWK9MzQWK_TeaslgYLCtVBUZnE4Eg1FpXE_0_fAEg"
+OKK_TABS = {
+    "ФМСЖ Общее": "1884530113",
+    "Местн. поставщик": "",   # ← вставьте gid этой вкладки (число после gid= в адресе вкладки)
+}
+OKK_COLS = ["Строка", "Источник", "№ накладной", "Дата", "ШК", "Наименование",
+            "Тип расхождения", "Кол-во", "Комментарий"]
+OKK_EXPORT = ["Строка", "ШК", "Наименование", "Тип расхождения", "Кол-во", "Комментарий"]
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 st.set_page_config(page_title="Аналитика расхождений СКЮ", page_icon="📦",
@@ -136,12 +146,12 @@ div.stButton > button:hover { transform: translateY(-2px); border-color: #7C3AED
 div.stButton > button[kind="primary"] { background: linear-gradient(90deg, #7C3AED, #0EA5E9) !important; color: #fff !important; border: none !important; }
 div.stButton > button[kind="primary"] * { color: #fff !important; }
 .st-key-full_dl [data-testid="stDownloadButton"] button, .st-key-full_dl .stDownloadButton button,
-.st-key-filter_dl [data-testid="stDownloadButton"] button, .st-key-filter_dl .stDownloadButton button {
+[class*="st-key-filter_dl"] [data-testid="stDownloadButton"] button, [class*="st-key-filter_dl"] .stDownloadButton button {
 width: 100%; border: none !important; border-radius: 14px !important; font-weight: 900 !important; color: #fff !important;
 background: linear-gradient(90deg, #F59E0B, #EF4444, #EC4899) !important; padding: .7rem 1rem; box-shadow: 0 10px 24px rgba(239,68,68,.35);
 }
-.st-key-filter_dl [data-testid="stDownloadButton"] button, .st-key-filter_dl .stDownloadButton button { background: linear-gradient(90deg, #7C3AED, #0EA5E9) !important; box-shadow: 0 10px 24px rgba(79,70,229,.3); }
-.st-key-full_dl button *, .st-key-filter_dl button * { color: #fff !important; }
+[class*="st-key-filter_dl"] [data-testid="stDownloadButton"] button, [class*="st-key-filter_dl"] .stDownloadButton button { background: linear-gradient(90deg, #7C3AED, #0EA5E9) !important; box-shadow: 0 10px 24px rgba(79,70,229,.3); }
+.st-key-full_dl button *, [class*="st-key-filter_dl"] button * { color: #fff !important; }
 
 .sec { font-size: 20px; font-weight: 900; margin: 28px 0 10px; }
 .sec small { font-size: 13px; font-weight: 600; color: #8B87AE; margin-left: 8px; }
@@ -240,8 +250,77 @@ def load_from_sheet():
         return finalize(pd.read_csv(io.StringIO(SAMPLE_DATA_CSV), dtype=str)), False, debug
 
 
+def norm_type(t) -> str:
+    t = " ".join(str(t).replace("\n", " ").split()).lower()
+    t = t.replace("передпросрок", "предпросрок")
+    if t.startswith("излишка с инвент"):
+        t = "излишка с инвентаризации"
+    return t[:1].upper() + t[1:]
+
+
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
+def load_okk():
+    """Читает вкладки с «Тип расхождения» и «Разница». Возвращает (df, debug)."""
+    frames, debug = [], {}
+    for tab, gid in OKK_TABS.items():
+        if not gid:
+            debug[tab] = "gid не указан — вкладка пропущена"
+            continue
+        try:
+            url = f"https://docs.google.com/spreadsheets/d/{OKK_SHEET_ID}/export?format=csv&gid={gid}"
+            r = requests.get(url, timeout=25)
+            r.raise_for_status()
+            r.encoding = "utf-8"
+            raw = pd.read_csv(io.StringIO(r.text), dtype=str, header=None)
+            hdr = next(i for i in range(min(len(raw), 40))
+                       if raw.iloc[i].astype(str).str.lower().str.contains("тип расхожд").any())
+            cols = [str(c).strip().lower() for c in raw.iloc[hdr]]
+            body = raw.iloc[hdr + 1:]
+
+            def pick(*keys):
+                return [i for i, c in enumerate(cols) if any(k in c for k in keys)]
+
+            def one(*keys):
+                ix = pick(*keys)
+                return body.iloc[:, ix[0]] if ix else pd.Series("", index=body.index)
+
+            com = body.iloc[:, pick("комментар", "куда израсход")].fillna("").astype(str) \
+                if pick("комментар", "куда израсход") else pd.DataFrame({"c": [""] * len(body)}, index=body.index)
+            comment = com.apply(lambda row: " | ".join(v.strip() for v in row if v.strip() and v != "nan"), axis=1)
+            part = pd.DataFrame({
+                "Строка": body.index + 1, "Источник": tab,
+                "№ накладной": one("накладн").fillna("").astype(str).str.strip(),
+                "Дата": one("дата").fillna("").astype(str),
+                "ШК": clean_id(one("шк").fillna("")),
+                "Наименование": one("наименование").fillna("").astype(str).str.strip(),
+                "Тип расхождения": one("тип расхожд").fillna("").astype(str).map(norm_type),
+                "Кол-во": clean_numeric(one("разница")).round(0).astype("int64"),
+                "Комментарий": comment,
+            })
+            part = part[~part["Тип расхождения"].isin(["", "Nan"])]
+            frames.append(part)
+            debug[tab] = f"ok, строк: {len(part)}"
+        except Exception as e:
+            debug[tab] = f"{type(e).__name__}: {e}"
+    out = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=OKK_COLS)
+    return out[OKK_COLS], debug
+
+
+def okk_sheets(o: pd.DataFrame) -> dict:
+    summ = (o.groupby("Тип расхождения", as_index=False)
+            .agg(**{"Строк": ("Строка", "count"), "Кол-во": ("Кол-во", "sum")})
+            .sort_values("Строк", ascending=False))
+    return {"ОКК": o[OKK_EXPORT], "ОКК итоги": summ}
+
+
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
+def okk_bytes(o: pd.DataFrame, tname: str | None = None) -> bytes:
+    d = o if tname is None else o[o["Тип расхождения"] == tname]
+    return to_excel_bytes({}, extra_sheets={(tname or "Все типы")[:31]: d[OKK_EXPORT]})
+
+
 # ───────────────────────────── EXCEL ─────────────────────────────
-def to_excel_bytes(sheets: dict, drop_cols: dict | None = None) -> bytes:
+def to_excel_bytes(sheets: dict, drop_cols: dict | None = None, extra_sheets: dict | None = None) -> bytes:
     drop_cols = drop_cols or {}
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
@@ -272,6 +351,16 @@ def to_excel_bytes(sheets: dict, drop_cols: dict | None = None) -> bytes:
                 ci = list(out.columns).index("Рассхождения")
                 ws.conditional_format(1, ci, len(out), ci, {"type": "cell", "criteria": "<", "value": 0, "format": neg_fmt})
                 ws.conditional_format(1, ci, len(out), ci, {"type": "cell", "criteria": ">", "value": 0, "format": pos_fmt})
+        for name, edf in (extra_sheets or {}).items():
+            name = name[:31]
+            edf.to_excel(writer, sheet_name=name, index=False)
+            ws = writer.sheets[name]
+            for i, col in enumerate(edf.columns):
+                ws.write(0, i, col, header_fmt)
+                ws.set_column(i, i, max(12, min(46, int(edf[col].astype(str).str.len().max() or 12) + 2)) if len(edf) else 14)
+                if col == "ШК":
+                    for r, v in enumerate(edf[col].astype(str), start=1):
+                        ws.write_string(r, i, v, text_fmt)
     return output.getvalue()
 
 
@@ -288,11 +377,12 @@ def subset(data: pd.DataFrame, kind: str) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
-def export_bytes(kind: str, data: pd.DataFrame) -> bytes:
+def export_bytes(kind: str, data: pd.DataFrame, okk: pd.DataFrame | None = None) -> bytes:
     """kind='full' — одна книга: лист «Все товары» + отдельные листы по категориям."""
     drop = {"Потери": [DISPLAY_NAMES["discrepancy"]]}
     if kind == "full":
-        return to_excel_bytes({v[5]: subset(data, k) for k, v in KINDS.items()}, drop_cols=drop)
+        extra = okk_sheets(okk) if okk is not None and len(okk) else None   # ОКК — только в общей выгрузке
+        return to_excel_bytes({v[5]: subset(data, k) for k, v in KINDS.items()}, drop_cols=drop, extra_sheets=extra)
     return to_excel_bytes({KINDS[kind][5]: subset(data, kind)}, drop_cols=drop)
 
 
@@ -317,6 +407,7 @@ a.download=f.n;document.body.appendChild(a);a.click();a.remove();}};r.appendChil
 # ───────────────────────────── ДАННЫЕ ─────────────────────────────
 with st.spinner("⏳ Загружаю данные из Google Таблицы…"):
     df, is_live, debug_info = load_from_sheet()
+    okk_df, okk_debug = load_okk()
 TS = datetime.now().strftime("%Y%m%d_%H%M")
 
 
@@ -347,10 +438,11 @@ with st.sidebar:
     st.markdown("### 🛟 Резервная выгрузка")
     st.caption("Если обычные кнопки не скачивают файл — включите, появятся запасные кнопки.")
     if st.toggle("Показать запасные кнопки"):
-        fallback_panel([("Все товары (книга)", f"vse_tovary_{TS}.xlsx", export_bytes("full", df))] +
+        fallback_panel([("Все товары (книга)", f"vse_tovary_{TS}.xlsx", export_bytes("full", df, okk_df))] +
                        [(KINDS[k][0], f"{KINDS[k][1]}_{TS}.xlsx", export_bytes(k, df)) for k in KINDS if k != "all"])
     with st.expander("🔧 Диагностика загрузки", expanded=not is_live):
         st.json(debug_info)
+        st.json({"ОКК": okk_debug})
     st.caption(f"Streamlit {st.__version__}")
 
 # ───────────────────────────── HERO ─────────────────────────────
@@ -379,7 +471,7 @@ with h2:
         st.cache_data.clear()
         st.rerun()
     with st.container(key="full_dl"):
-        st.download_button("📥 Выгрузить ВСЕ товары", data=export_bytes("full", df),
+        st.download_button("📥 Выгрузить ВСЕ товары", data=export_bytes("full", df, okk_df),
                            file_name=f"vse_tovary_{TS}.xlsx", mime=XLSX_MIME, key="dl_full", width="stretch")
 
 # ───────────────────────────── KPI-КАРТОЧКИ ─────────────────────────────
@@ -494,6 +586,64 @@ with st.container(key="filter_dl"):
     st.download_button(f"⬇️ Скачать текущую выборку ({fmt(len(filtered))} СКЮ)",
                        data=to_excel_bytes({mode_titles[mode][:31]: filtered}),
                        file_name=f"poisk_{mode}_{TS}.xlsx", mime=XLSX_MIME, key="dl_filter", width="stretch")
+
+# ───────────── ОКК: типы расхождений (отдельный источник) ─────────────
+st.markdown('<div class="sec">🧾 ОКК · Типы расхождений <small>отдельный источник — таблица «ФМСЖ Магнит Проблемные»; '
+            'в общую выгрузку попадает листами «ОКК» и «ОКК итоги»</small></div>', unsafe_allow_html=True)
+if okk_df.empty:
+    st.warning("Данные по типам расхождений не загружены — см. боковую панель → «Диагностика загрузки». "
+               "Проверьте, что таблица открыта по ссылке (доступ «Читатель»).")
+else:
+    if any(not g for g in OKK_TABS.values()):
+        st.caption("ℹ️ Вкладка «Местн. поставщик» не подключена: укажите её gid в OKK_TABS в начале файла.")
+    PAL = [("#6366F1", "#A78BFA"), ("#16A34A", "#4ADE80"), ("#DC2626", "#FB7185"), ("#0891B2", "#22D3EE"),
+           ("#D97706", "#FBBF24"), ("#DB2777", "#F472B6"), ("#7C3AED", "#C084FC"), ("#0D9488", "#5EEAD4"),
+           ("#EA580C", "#FDBA74")]
+    agg = (okk_df.groupby("Тип расхождения", as_index=False)
+           .agg(Строк=("Строка", "count"), Кол=("Кол-во", "sum")).sort_values("Строк", ascending=False))
+    items = [("Все типы", len(okk_df), int(okk_df["Кол-во"].sum()), None)] + [
+        (r["Тип расхождения"], int(r["Строк"]), int(r["Кол"]), r["Тип расхождения"]) for _, r in agg.iterrows()]
+    st.markdown("<style>" + "".join(f".st-key-card_ok{i}{{--c:{PAL[i % 9][0]};--c2:{PAL[i % 9][1]};}}"
+                                    for i in range(len(items))) + "</style>", unsafe_allow_html=True)
+    for start in range(0, len(items), 4):
+        for col, (i, (label, n, q, tname)) in zip(st.columns(4), list(enumerate(items))[start:start + 4]):
+            share = n / len(okk_df) * 100
+            with col:
+                with st.container(key=f"card_ok{i}"):
+                    st.markdown(f"""
+<div class="k-top"><span class="k-ico">🧾</span><span class="k-label">{label}</span></div>
+<div class="k-val">{fmt(q)}<small> шт</small></div>
+<div class="k-sub">{fmt(n)} строк · {share:.1f}%</div>
+<div class="k-bar"><i style="width:{share:.1f}%"></i></div>
+""", unsafe_allow_html=True)
+                    st.download_button("⬇ Скачать Excel", data=okk_bytes(okk_df, tname),
+                                       file_name=f"okk_{i}_{TS}.xlsx", mime=XLSX_MIME, key=f"dl_ok{i}", width="stretch")
+
+    fig3 = px.bar(agg, x="Кол", y="Тип расхождения", orientation="h", text_auto=True, color="Тип расхождения",
+                  color_discrete_sequence=[c[0] for c in PAL[1:]], labels={"Кол": "Кол-во (Разница), шт"})
+    fig3.update_layout(showlegend=False, yaxis=dict(autorange="reversed", title=None), paper_bgcolor="rgba(0,0,0,0)",
+                       plot_bgcolor="rgba(0,0,0,0)", height=360, margin=dict(t=30, b=20, l=10, r=10),
+                       title=dict(text="Количество по типам расхождения", font=dict(size=15)))
+    fig3.update_traces(marker_cornerradius=6)
+    st.plotly_chart(fig3, width="stretch")
+
+    sel = st.multiselect("Тип расхождения", sorted(okk_df["Тип расхождения"].unique()), placeholder="Все типы")
+    o = okk_df[okk_df["Тип расхождения"].isin(sel)] if sel else okk_df
+    if search:
+        q_ = search.strip().lower()
+        o = o[o[["ШК", "Наименование", "№ накладной"]].astype(str)
+              .apply(lambda c: c.str.lower().str.contains(q_, na=False)).any(axis=1)]
+    st.markdown(f"""
+<div class="strip">
+<div>Строк: <b>{fmt(len(o))}</b></div>
+<div>Кол-во (сумма «Разница»): <b>{fmt(int(o['Кол-во'].sum()))}</b> шт</div>
+</div>
+""", unsafe_allow_html=True)
+    st.dataframe(o, width="stretch", height=400, hide_index=True)
+    with st.container(key="filter_dl_okk"):
+        st.download_button(f"⬇️ Скачать текущую выборку ОКК ({fmt(len(o))} строк)",
+                           data=to_excel_bytes({}, extra_sheets={"ОКК": o[OKK_EXPORT]}),
+                           file_name=f"okk_vyborka_{TS}.xlsx", mime=XLSX_MIME, key="dl_okk_filter", width="stretch")
 
 st.markdown('<div style="text-align:center;color:#7C7A9E;margin-top:30px;font-size:12px;">'
             'Данные обновляются из Google Таблицы каждые 5 минут</div>', unsafe_allow_html=True)
