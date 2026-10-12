@@ -161,9 +161,7 @@ SAMPLE_DATA_CSV = """СКЮ,Код Магнита,Описания,Принят�
 # СТИЛИ — яркий динамичный интерфейс с анимациями
 # ВАЖНО: все строки HTML/CSS начинаются БЕЗ отступа (с левого края).
 # Если строка внутри st.markdown() начинается с 4+ пробелов, Streamlit
-# (markdown/CommonMark) воспринимает её как БЛОК КОДА и печатает как
-# обычный текст вместо того, чтобы отрендерить как HTML — именно из-за
-# этого на дашборде "вылезали" сырые теги вроде </div>.
+# воспринимает её как БЛОК КОДА и печатает как обычный текст.
 # ──────────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -254,11 +252,6 @@ animation: fadeInUp 0.5s ease both;
 transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 position: relative;
 }
-.kpi-card:nth-child(1) { animation-delay: 0.02s; }
-.kpi-card:nth-child(2) { animation-delay: 0.08s; }
-.kpi-card:nth-child(3) { animation-delay: 0.14s; }
-.kpi-card:nth-child(4) { animation-delay: 0.20s; }
-.kpi-card:nth-child(5) { animation-delay: 0.26s; }
 .kpi-card:hover {
 border-color: rgba(124,58,237,0.45);
 transform: translateY(-3px);
@@ -360,6 +353,37 @@ animation: fadeInUp 0.4s ease both;
 
 h1, h2, h3, h4, h5, p, span, label { color: #1E1B33; }
 
+/* ── Кликабельные карточки-выгрузки ── */
+[class*="st-key-dl_"] { position: relative; }
+[class*="st-key-dl_"] .stDownloadButton {
+    position: absolute !important; inset: 0; z-index: 5; margin: 0 !important;
+}
+[class*="st-key-dl_"] .stDownloadButton > div,
+[class*="st-key-dl_"] .stDownloadButton button {
+    width: 100% !important; height: 100% !important;
+    opacity: 0 !important; cursor: pointer !important;
+}
+[class*="st-key-dl_"]:hover .kpi-card {
+    border-color: rgba(124,58,237,0.55);
+    transform: translateY(-4px);
+    box-shadow: 0 14px 30px rgba(124,58,237,0.22);
+}
+.kpi-dl {
+    margin-top: 10px; font-size: 11.5px; font-weight: 700;
+    color: #7C3AED; opacity: 0.55; transition: all 0.2s ease;
+}
+[class*="st-key-dl_"]:hover .kpi-dl { opacity: 1; letter-spacing: 0.3px; }
+
+/* Главная кнопка «Выгрузить все товары» */
+.st-key-dl_full_btn .stDownloadButton { position: static !important; }
+.st-key-dl_full_btn .stDownloadButton > div,
+.st-key-dl_full_btn .stDownloadButton button {
+    height: 54px !important; opacity: 1 !important; font-size: 15px !important;
+    background: linear-gradient(90deg, #7C3AED, #22D3EE) !important;
+    color: #fff !important; border: none !important;
+    animation: pulseGlow 2.4s ease-in-out infinite;
+}
+
 footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
@@ -401,14 +425,12 @@ def clean_numeric(series: pd.Series) -> pd.Series:
 def clean_id(series: pd.Series) -> pd.Series:
     """Приводит СКЮ/код Магнита к чистой текстовой строке без
     научной нотации и хвостового '.0', даже если данные пришли как float.
-    Обычные "чистые" строки (например, при чтении с dtype=str) не трогает,
-    чтобы не терять точность длинных чисел через промежуточный float."""
+    Обычные "чистые" строки не трогает, чтобы не терять точность."""
     def _fix(v):
         s = str(v).strip()
         if s in ("", "nan", "None", "NaT"):
             return "0"
         if s.lstrip("-").isdigit():
-            # уже чистое целое число в виде строки — не трогаем (без потери точности)
             return s
         if "." in s or "e" in s.lower():
             try:
@@ -441,8 +463,7 @@ def finalize(raw: pd.DataFrame) -> pd.DataFrame:
         df[col] = df[col].round(0).astype("int64")
 
     # Группировка по СКЮ / Код Магнита / Описания —
-    # суммируем Потеряно и Рассхождения (и остальные числовые поля),
-    # чтобы дубли по одному СКЮ не искажали аналитику.
+    # суммируем числовые поля, чтобы дубли по одному СКЮ не искажали аналитику.
     df = df.groupby(GROUP_COLS, as_index=False)[NUMERIC_COLS].sum()
 
     df["category"] = df["discrepancy"].apply(categorize)
@@ -457,7 +478,7 @@ def load_from_sheet() -> tuple[pd.DataFrame, bool, dict]:
         resp = requests.get(SHEET_URL, timeout=20)
         debug["status_code"] = resp.status_code
         resp.raise_for_status()
-        resp.encoding = "utf-8"  # Google отдаёт UTF-8, но requests иногда угадывает latin-1 без явного charset
+        resp.encoding = "utf-8"
         text = resp.text
         debug["response_preview"] = text[:300]
         debug["response_length"] = len(text)
@@ -465,7 +486,7 @@ def load_from_sheet() -> tuple[pd.DataFrame, bool, dict]:
             debug["error"] = "Ответ похож на HTML-страницу (логин/доступ), а не на CSV"
             raise ValueError("no access")
         # dtype=str — критично: не даём pandas превращать длинные числовые
-        # СКЮ/коды в float (что приводит к "1.0000e+18" и "123.0" при экспорте)
+        # СКЮ/коды в float
         raw = pd.read_csv(io.StringIO(text), dtype=str)
         debug["raw_columns"] = list(raw.columns)
         debug["raw_row_count"] = len(raw)
@@ -479,7 +500,7 @@ def load_from_sheet() -> tuple[pd.DataFrame, bool, dict]:
 
 
 def to_excel_bytes(sheets: dict, drop_cols: dict | None = None) -> bytes:
-    """drop_cols: {sheet_name: [список отображаемых названий колонок, которые НЕ выгружать]}"""
+    """drop_cols: {sheet_name: [отображаемые названия колонок, которые НЕ выгружать]}"""
     drop_cols = drop_cols or {}
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
@@ -490,12 +511,12 @@ def to_excel_bytes(sheets: dict, drop_cols: dict | None = None) -> bytes:
         )
         pos_fmt = workbook.add_format({"font_color": "#B91C1C"})
         neg_fmt = workbook.add_format({"font_color": "#15803D"})
-        text_fmt = workbook.add_format({"num_format": "@"})  # текстовый формат ячейки
+        text_fmt = workbook.add_format({"num_format": "@"})
 
         id_display_cols = {DISPLAY_NAMES["sku"], DISPLAY_NAMES["magnit_code"]}
 
         for sheet_name, data in sheets.items():
-            # Не выгружаем строки без описания (значение "0" — значит нет данных)
+            # Не выгружаем строки без описания (значение "0" — нет данных)
             data = data[data["description"] != "0"]
             # Сортировка от большего к меньшему по модулю расхождения
             data = data.reindex(data["discrepancy"].abs().sort_values(ascending=False).index)
@@ -514,17 +535,74 @@ def to_excel_bytes(sheets: dict, drop_cols: dict | None = None) -> bytes:
                 width = max(14, min(46, int(display_df[col].astype(str).str.len().max() or 14) + 2))
                 ws.set_column(i, i, width)
                 if col in id_display_cols:
-                    # Перезаписываем ячейки колонки явно как ТЕКСТ, чтобы Excel
-                    # не превращал длинные СКЮ/коды в число / научную нотацию
+                    # Явно как ТЕКСТ, чтобы Excel не превращал СКЮ/коды в число
                     for r, val in enumerate(display_df[col].astype(str), start=1):
                         ws.write_string(r, i, val, text_fmt)
             if "Рассхождения" in display_df.columns and len(display_df) > 0:
                 col_idx = list(display_df.columns).index("Рассхождения")
                 ws.conditional_format(1, col_idx, len(display_df), col_idx,
-                                       {"type": "cell", "criteria": "<", "value": 0, "format": neg_fmt})
+                                      {"type": "cell", "criteria": "<", "value": 0, "format": neg_fmt})
                 ws.conditional_format(1, col_idx, len(display_df), col_idx,
-                                       {"type": "cell", "criteria": ">", "value": 0, "format": pos_fmt})
+                                      {"type": "cell", "criteria": ">", "value": 0, "format": pos_fmt})
     return output.getvalue()
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# ВЫГРУЗКА: кэшируемые файлы + кликабельные карточки
+# ──────────────────────────────────────────────────────────────────────────
+EXPORT_KINDS = {
+    "all":      ("Все товары",       "vse_tovary"),
+    "excess":   ("Излишки",          "izlishki"),
+    "shortage": ("Недостачи",        "nedostachi"),
+    "zero":     ("Без расхождений",  "bez_rashozhdeniy"),
+    "loss":     ("Потери",           "poteri"),
+}
+
+
+def subset(data: pd.DataFrame, kind: str) -> pd.DataFrame:
+    if kind == "excess":
+        return data[data["discrepancy"] < 0]
+    if kind == "shortage":
+        return data[data["discrepancy"] > 0]
+    if kind == "zero":
+        return data[data["discrepancy"] == 0]
+    if kind == "loss":
+        return data[data["lost"] > 0]
+    return data
+
+
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
+def export_bytes(kind: str, data: pd.DataFrame) -> bytes:
+    """kind='full' — одна книга Excel: все товары + отдельные листы по типам."""
+    drop = {"Потери": [DISPLAY_NAMES["discrepancy"]]}
+    if kind == "full":
+        sheets = {EXPORT_KINDS[k][0]: subset(data, k) for k in EXPORT_KINDS}
+        return to_excel_bytes(sheets, drop_cols=drop)
+    name = EXPORT_KINDS[kind][0]
+    return to_excel_bytes({name: subset(data, kind)}, drop_cols=drop if kind == "loss" else None)
+
+
+TS = datetime.now().strftime("%Y%m%d_%H%M")
+XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def clickable_card(col, key, kind, inner_html, style=""):
+    """Карточка, клик по которой скачивает Excel."""
+    with col:
+        with st.container(key=f"dl_{key}"):
+            st.markdown(
+                f'<div class="kpi-card" style="{style}">{inner_html}'
+                f'<div class="kpi-dl">⬇ Скачать Excel</div></div>',
+                unsafe_allow_html=True,
+            )
+            st.download_button(
+                "Скачать",
+                data=export_bytes(kind, df),
+                file_name=f"{EXPORT_KINDS[kind][1]}_{TS}.xlsx",
+                mime=XLSX_MIME,
+                key=f"dlbtn_{key}",
+                on_click="ignore",
+            )
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -549,7 +627,7 @@ with st.sidebar:
         st.caption("⚠️ Показаны демо-данные (таблица недоступна)")
 
 # ──────────────────────────────────────────────────────────────────────────
-# HERO + КНОПКА ОБНОВИТЬ
+# HERO + КНОПКИ «ОБНОВИТЬ» И «ВЫГРУЗИТЬ ВСЕ ТОВАРЫ»
 # ──────────────────────────────────────────────────────────────────────────
 if "filter_mode" not in st.session_state:
     st.session_state.filter_mode = "all"
@@ -569,6 +647,15 @@ with hero_col2:
     if st.button("🔄 Обновить данные", width="stretch"):
         st.cache_data.clear()
         st.rerun()
+    with st.container(key="dl_full_btn"):
+        st.download_button(
+            "📥 Выгрузить все товары",
+            data=export_bytes("full", df),
+            file_name=f"vse_tovary_{TS}.xlsx",
+            mime=XLSX_MIME,
+            width="stretch",
+            on_click="ignore",
+        )
 
 # ──────────────────────────────────────────────────────────────────────────
 # КНОПКИ-ФИЛЬТРЫ ПО ТИПУ РАСХОЖДЕНИЯ
@@ -635,8 +722,8 @@ def fmt(n):
 
 
 st.markdown("### 📈 Ключевые показатели")
+st.caption("💡 Нажмите на любую карточку — скачается Excel с этой выборкой")
 kpi_cols = st.columns(5)
-# (label, значение в шт, доп.строка "% · N СКЮ", цвет категории)
 kpi_data = [
     ("Всего СКЮ", fmt(qty_total), f"{fmt(total)} СКЮ", "#4F46E5"),
     ("Излишки", fmt(qty_excess), f"{pct_excess:.1f}% · {fmt(excess_n)} СКЮ", "#16A34A"),
@@ -644,14 +731,13 @@ kpi_data = [
     ("Без расхождений", fmt(qty_zero), f"{pct_zero:.1f}% · {fmt(zero_n)} СКЮ", "#0891B2"),
     ("С потерями", fmt(qty_lost), f"{pct_loss:.1f}% · {fmt(loss_n)} СКЮ", "#D97706"),
 ]
-for col, (label, value, sub, color) in zip(kpi_cols, kpi_data):
-    col.markdown(f"""
-<div class="kpi-card" style="border-top:4px solid {color};">
+kpi_kinds = ["all", "excess", "shortage", "zero", "loss"]
+for col, kind, (label, value, sub, color) in zip(kpi_cols, kpi_kinds, kpi_data):
+    inner = f"""
 <div class="kpi-label">{label}</div>
 <div class="kpi-value" style="background:linear-gradient(90deg, {color}, {color}CC); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">{value} <span style="font-size:14px; font-weight:700;">шт</span></div>
-<div class="kpi-sub" style="color:{color};">{sub}</div>
-</div>
-""", unsafe_allow_html=True)
+<div class="kpi-sub" style="color:{color};">{sub}</div>"""
+    clickable_card(col, f"kpi_{kind}", kind, inner, style=f"border-top:4px solid {color};")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -661,14 +747,13 @@ progress_data = [
     (prog_col2, "Недостачи", pct_shortage, "#DC2626, #F87171"),
     (prog_col3, "Потери", pct_loss, "#D97706, #F59E0B"),
 ]
-for col, label, pct, color in progress_data:
-    col.markdown(f"""
-<div class="kpi-card">
+progress_kinds = ["excess", "shortage", "loss"]
+for (col, label, pct, color), kind in zip(progress_data, progress_kinds):
+    inner = f"""
 <div class="kpi-label">Доля: {label}</div>
 <div class="kpi-value" style="font-size:22px;">{pct:.1f}%</div>
-<div class="prog-wrap"><div class="prog-bar" style="width:{pct:.1f}%; background:linear-gradient(90deg, {color});"></div></div>
-</div>
-""", unsafe_allow_html=True)
+<div class="prog-wrap"><div class="prog-bar" style="width:{pct:.1f}%; background:linear-gradient(90deg, {color});"></div></div>"""
+    clickable_card(col, f"prog_{kind}", kind, inner)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -685,14 +770,13 @@ fig_donut = px.pie(
     color_discrete_map={"Излишки": "#16A34A", "Недостачи": "#DC2626", "Без расхождений": "#0891B2"},
 )
 fig_donut.update_traces(textposition="outside", textinfo="percent+label",
-                         marker=dict(line=dict(color="#FFFFFF", width=2)))
+                        marker=dict(line=dict(color="#FFFFFF", width=2)))
 fig_donut.update_layout(showlegend=False, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                         font_color="#1E1B33", margin=dict(t=10, b=10, l=10, r=10), height=340,
-                         transition_duration=400)
+                        font_color="#1E1B33", margin=dict(t=10, b=10, l=10, r=10), height=340,
+                        transition_duration=400)
 st.plotly_chart(fig_donut, width="stretch")
 
 st.markdown("<br>", unsafe_allow_html=True)
-
 
 # ──────────────────────────────────────────────────────────────────────────
 # ТАБЛИЦА + ИТОГИ ПО ВЫБОРКЕ
@@ -744,45 +828,44 @@ st.dataframe(styled, width="stretch", height=420, hide_index=True)
 st.markdown("### 📤 Выгрузка в Excel")
 exp_col1, exp_col2, exp_col3, exp_col4 = st.columns(4)
 
-ts = datetime.now().strftime("%Y%m%d_%H%M")
-
 with exp_col1:
-    data = df[df["discrepancy"] < 0]
     st.download_button(
-        f"⬇️ Излишки ({fmt(len(data))})",
-        data=to_excel_bytes({"Излишки": data}),
-        file_name=f"izlishki_{ts}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        f"⬇️ Излишки ({fmt(len(subset(df, 'excess')))})",
+        data=export_bytes("excess", df),
+        file_name=f"izlishki_{TS}.xlsx",
+        mime=XLSX_MIME,
         width="stretch",
+        on_click="ignore",
     )
 
 with exp_col2:
-    data = df[df["discrepancy"] > 0]
     st.download_button(
-        f"⬇️ Недостачи ({fmt(len(data))})",
-        data=to_excel_bytes({"Недостачи": data}),
-        file_name=f"nedostachi_{ts}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        f"⬇️ Недостачи ({fmt(len(subset(df, 'shortage')))})",
+        data=export_bytes("shortage", df),
+        file_name=f"nedostachi_{TS}.xlsx",
+        mime=XLSX_MIME,
         width="stretch",
+        on_click="ignore",
     )
 
 with exp_col3:
-    data = df[df["lost"] > 0]
     st.download_button(
-        f"⬇️ Потери ({fmt(len(data))})",
-        data=to_excel_bytes({"Потери": data}, drop_cols={"Потери": [DISPLAY_NAMES["discrepancy"]]}),
-        file_name=f"poteri_{ts}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        f"⬇️ Потери ({fmt(len(subset(df, 'loss')))})",
+        data=export_bytes("loss", df),
+        file_name=f"poteri_{TS}.xlsx",
+        mime=XLSX_MIME,
         width="stretch",
+        on_click="ignore",
     )
 
 with exp_col4:
     st.download_button(
         f"⬇️ Текущий поиск/фильтр ({fmt(len(filtered))})",
         data=to_excel_bytes({mode_titles[mode][:31]: filtered}),
-        file_name=f"poisk_{mode}_{ts}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        file_name=f"poisk_{mode}_{TS}.xlsx",
+        mime=XLSX_MIME,
         width="stretch",
+        on_click="ignore",
     )
 
 st.markdown("""
