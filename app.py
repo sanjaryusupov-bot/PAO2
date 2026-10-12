@@ -63,15 +63,14 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
 html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-.stApp { position: relative; z-index: 0; isolation: isolate; background: #F6F4FF; }
-.stApp::before {
-content: ""; position: fixed; inset: -20%; z-index: -1; pointer-events: none;
-background: radial-gradient(600px 400px at 15% 20%, rgba(139,92,246,.22), transparent 70%),
-            radial-gradient(550px 380px at 85% 10%, rgba(34,211,238,.20), transparent 70%),
-            radial-gradient(600px 420px at 60% 90%, rgba(244,114,182,.16), transparent 70%);
-animation: drift 16s ease-in-out infinite alternate;
+[data-testid="stAppViewContainer"], [data-testid="stMain"], [data-testid="stHeader"] { background: transparent !important; }
+.stApp {
+background: radial-gradient(700px 450px at 12% 8%, rgba(139,92,246,.24), transparent 70%),
+            radial-gradient(650px 420px at 90% 6%, rgba(34,211,238,.22), transparent 70%),
+            radial-gradient(700px 450px at 60% 100%, rgba(244,114,182,.18), transparent 70%),
+            #F6F4FF !important;
+background-attachment: fixed !important;
 }
-@keyframes drift { to { transform: translate3d(40px,-30px,0) scale(1.08); } }
 @keyframes fadeUp { from { opacity:0; transform: translateY(16px); } to { opacity:1; transform:none; } }
 @keyframes flow { to { background-position: 300% 0; } }
 @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(74,222,128,.7); } 50% { box-shadow: 0 0 0 8px rgba(74,222,128,0); } }
@@ -221,7 +220,7 @@ def finalize(raw: pd.DataFrame) -> pd.DataFrame:
 def load_from_sheet():
     debug = {"url": SHEET_URL}
     try:
-        resp = requests.get(SHEET_URL, timeout=20)
+        resp = requests.get(SHEET_URL, timeout=12)
         debug["status_code"] = resp.status_code
         resp.raise_for_status()
         resp.encoding = "utf-8"
@@ -316,7 +315,8 @@ a.download=f.n;document.body.appendChild(a);a.click();a.remove();}};r.appendChil
 
 
 # ───────────────────────────── ДАННЫЕ ─────────────────────────────
-df, is_live, debug_info = load_from_sheet()
+with st.spinner("⏳ Загружаю данные из Google Таблицы…"):
+    df, is_live, debug_info = load_from_sheet()
 TS = datetime.now().strftime("%Y%m%d_%H%M")
 
 
